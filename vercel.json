@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/wall-rebar-ocr_1/$1" }
+  ]
+}
