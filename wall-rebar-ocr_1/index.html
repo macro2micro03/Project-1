@@ -3,128 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>벽체 배근일람도 OCR 추출기</title>
+  <title>벽체 배근일람도 추출기 (DXF/PDF)</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #f8f9fb;
-      --surface: #ffffff;
-      --border: #e2e6ea;
-      --border-strong: #c8cdd4;
-      --text: #1a1d23;
-      --text-muted: #6b7280;
-      --text-hint: #9ca3af;
-      --primary: #1F4E79;
-      --primary-hover: #185FA5;
-      --success: #0F6E56;
-      --success-hover: #1D9E75;
-      --warn-bg: #FFF9E6;
-      --warn-border: #FAC775;
-      --warn-text: #633806;
-      --info-bg: #E6F1FB;
-      --info-text: #0C447C;
-      --row-new: #FFFBF0;
-      --row-even: #F4F9FF;
-      --star: #854F0B;
-      --err: #E24B4A;
-      --radius: 10px;
-      --radius-sm: 6px;
+      --bg: #f8f9fb; --surface: #fff;
+      --border: #e2e6ea; --border-strong: #c8cdd4;
+      --text: #1a1d23; --text-muted: #6b7280; --text-hint: #9ca3af;
+      --primary: #1F4E79; --primary-hover: #185FA5;
+      --success: #0F6E56; --success-hover: #1D9E75;
+      --warn-bg: #FFF9E6; --warn-border: #FAC775; --warn-text: #633806;
+      --info-bg: #E6F1FB; --info-text: #0C447C;
+      --row-new: #FFFBF0; --row-even: #F4F9FF;
+      --star: #854F0B; --err: #E24B4A;
+      --radius: 10px; --radius-sm: 6px;
     }
-
-    body {
-      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
-
-    .container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-
+    body { font-family: 'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 1020px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
     header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
     header h1 { font-size: 20px; font-weight: 700; color: var(--primary); }
     header p  { font-size: 13px; color: var(--text-muted); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; display: flex; flex-direction: column; gap: 14px; }
+    .section-label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; }
+    .notice { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--warn-text); line-height: 1.7; }
+    .notice strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .notice ul { padding-left: 16px; margin-top: 2px; }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    .notice {
-      background: var(--warn-bg);
-      border: 1px solid var(--warn-border);
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
-      font-size: 12px;
-      color: var(--warn-text);
-      line-height: 1.6;
-    }
+    /* 파일 타입 탭 */
+    .tab-row { display: flex; gap: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+    .tab-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: var(--bg); color: var(--text-muted); transition: background .15s, color .15s; }
+    .tab-btn.active { background: var(--primary); color: #fff; }
 
     /* 드롭존 */
-    .drop-zone {
-      border: 2px dashed var(--border-strong);
-      border-radius: var(--radius);
-      padding: 2rem 1rem;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-    }
-    .drop-zone:hover, .drop-zone.over {
-      border-color: #378ADD;
-      background: var(--info-bg);
-    }
+    .drop-zone { border: 2px dashed var(--border-strong); border-radius: var(--radius); padding: 2rem 1rem; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+    .drop-zone:hover, .drop-zone.over { border-color: #378ADD; background: var(--info-bg); }
     .drop-zone svg { margin: 0 auto 10px; display: block; color: var(--text-muted); }
     .drop-zone p   { font-size: 14px; color: var(--text-muted); }
     .drop-zone small { font-size: 12px; color: var(--text-hint); margin-top: 4px; display: block; }
-
-    /* 파일 칩 */
     .chip-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 4px; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 10px; background: var(--bg);
-      border: 1px solid var(--border); border-radius: 20px;
-      font-size: 12px; color: var(--text);
-    }
-    .chip .x { cursor: pointer; color: var(--text-muted); font-size: 14px; line-height: 1; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; }
+    .chip .x { cursor: pointer; color: var(--text-muted); font-size: 14px; }
     .chip .x:hover { color: var(--err); }
 
-    /* 슬라이더 */
-    .slider-row {
-      display: flex; align-items: center; gap: 12px;
-      background: var(--bg); border-radius: var(--radius-sm); padding: 10px 14px;
-    }
+    /* PDF 옵션 */
+    .pdf-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .slider-row { display: flex; align-items: center; gap: 12px; background: var(--bg); border-radius: var(--radius-sm); padding: 10px 14px; }
     .slider-row label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
     .slider-row input[type=range] { flex: 1; }
-    .slider-row span { font-size: 12px; font-weight: 600; min-width: 100px; text-align: right; }
+    .slider-row span { font-size: 12px; font-weight: 600; min-width: 110px; text-align: right; }
+    .opt-row { display: flex; align-items: center; gap: 8px; background: var(--bg); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; cursor: pointer; }
+    .opt-row input { width: 15px; height: 15px; cursor: pointer; }
+    .opt-row span { color: var(--text-muted); }
 
     /* 버튼 */
-    .btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 9px 18px; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 500; cursor: pointer;
-      border: 1px solid var(--border-strong);
-      background: transparent; color: var(--text);
-      transition: background .15s;
-    }
-    .btn:hover   { background: var(--bg); }
-    .btn:active  { transform: scale(.98); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border-strong); background: transparent; color: var(--text); transition: background .15s; }
+    .btn:hover { background: var(--bg); }
+    .btn:active { transform: scale(.98); }
     .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
     .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
     .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
@@ -133,51 +70,40 @@
     .btn-row { display: flex; justify-content: flex-end; }
 
     /* 진행 */
-    .pbar  { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .pbar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
     .pfill { height: 100%; background: var(--success); border-radius: 3px; transition: width .4s; }
     .pbar-header { display: flex; justify-content: space-between; align-items: center; }
     .pstep { font-size: 12px; color: var(--text-muted); min-height: 18px; }
-    .logbox {
-      max-height: 140px; overflow-y: auto;
-      display: flex; flex-direction: column; gap: 2px;
-      font-family: 'Menlo', 'Consolas', monospace;
-    }
+    .logbox { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; font-family: 'Menlo','Consolas',monospace; }
     .logline { font-size: 12px; padding: 1px 0; }
-    .li { color: #378ADD; } .lok { color: #1D9E75; }
-    .lw { color: #EF9F27; } .le { color: var(--err); }
-    .lm { color: var(--text-muted); }
+    .li { color: #378ADD; } .lok { color: #1D9E75; } .lw { color: #EF9F27; } .le { color: var(--err); } .lm { color: var(--text-muted); }
 
     /* 통계 */
-    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
     .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .9rem; text-align: center; }
     .stat-val { font-size: 24px; font-weight: 700; color: var(--primary); }
     .stat-lbl { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-    /* 결과 테이블 */
+    /* 결과 */
     .result-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-    .result-header input[type=text] {
-      font-size: 12px; padding: 7px 10px;
-      border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-      background: var(--surface); color: var(--text); width: 170px;
-    }
+    .result-header input[type=text] { font-size: 12px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); width: 200px; }
     .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
-    table { width: 100%; border-collapse: collapse; min-width: 660px; }
-    th {
-      background: var(--primary); color: #fff;
-      font-size: 11px; font-weight: 600;
-      padding: 9px 10px; text-align: left; white-space: nowrap;
-    }
+    table { width: 100%; border-collapse: collapse; min-width: 740px; }
+    th { background: var(--primary); color: #fff; font-size: 11px; font-weight: 600; padding: 9px 10px; text-align: left; white-space: nowrap; }
     td { font-size: 12px; padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
-    tr.nw  td { background: var(--row-new);  }
-    tr.ev  td { background: var(--row-even); }
+    tr.nw td { background: var(--row-new); }
+    tr.ev td { background: var(--row-even); }
     tr:hover td { background: #f0f4f8; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; background: var(--info-bg); color: var(--info-text); }
-    .star  { color: var(--star); font-weight: 600; }
-    .note  { font-size: 11px; color: var(--text-muted); }
+    .mode-dxf { background: #D1FAE5; color: #0F6E56; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+    .mode-txt { background: var(--info-bg); color: var(--info-text); font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+    .mode-ocr { background: #FEF3C7; color: #92400E; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+    .star { color: var(--star); font-weight: 600; }
+    .note { font-size: 11px; color: var(--text-muted); }
 
-    @media (max-width: 600px) {
-      .stats-grid { grid-template-columns: repeat(3,1fr); }
-      header h1 { font-size: 17px; }
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: repeat(2,1fr); }
+      .pdf-opts { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -185,44 +111,61 @@
 <div class="container">
 
   <header>
-    <h1>벽체 배근일람도 OCR 추출기</h1>
-    <p>PDF 도면에서 벽체 배근 데이터를 자동 추출하여 Excel로 저장합니다 · API 키 불필요 · 완전 무료</p>
+    <h1>벽체 배근일람도 추출기 v3</h1>
+    <p>DXF(CAD 원본) 또는 PDF에서 벽체 배근 데이터를 자동 추출 · 셀 병합 인식 · Excel 내보내기</p>
   </header>
 
   <div class="notice">
-    <strong>영어 전용 OCR 모드</strong> — 철근 표기(SHD10, UHD16, @300, 7F~29F 등)는 모두 영문/숫자이므로 정상 인식됩니다.
-    한국어 언어팩 없이 즉시 시작됩니다.
+    <strong>파일 형식별 정확도 안내</strong>
+    <ul>
+      <li><strong>DXF (권장, ~100%)</strong> — AutoCAD 원본. 텍스트를 직접 읽어 오인식 없음. "다른 이름으로 저장 → DXF" 로 변환</li>
+      <li><strong>PDF 텍스트레이어 (~95%)</strong> — CAD에서 출력된 벡터 PDF. 텍스트 레이어 내장 시 자동 사용</li>
+      <li><strong>PDF 스캔 OCR (~70~85%)</strong> — 스캔본 PDF. 이미지 전처리 후 Tesseract OCR 적용</li>
+    </ul>
   </div>
 
-  <!-- 업로드 카드 -->
   <div class="card">
-    <div class="section-label">PDF 파일 업로드</div>
+    <div class="section-label">파일 업로드</div>
 
+    <!-- 탭 -->
+    <div class="tab-row">
+      <button class="tab-btn active" id="tabDxf" onclick="setTab('dxf')">📐 DXF (CAD 원본, 권장)</button>
+      <button class="tab-btn" id="tabPdf" onclick="setTab('pdf')">📄 PDF</button>
+    </div>
+
+    <!-- 드롭존 -->
     <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
       </svg>
-      <p>PDF 파일을 드래그하거나 클릭해서 선택</p>
+      <p id="dzLabel">DXF 파일을 드래그하거나 클릭해서 선택</p>
       <small>여러 파일 동시 가능 · 브라우저에서 직접 처리 · 파일이 외부로 전송되지 않음</small>
     </div>
-    <input type="file" id="fi" accept=".pdf" multiple style="display:none">
+    <input type="file" id="fi" accept=".dxf" multiple style="display:none">
     <div class="chip-list" id="flist"></div>
 
-    <div class="slider-row">
-      <label>렌더링 해상도</label>
-      <input type="range" id="dpiSlider" min="1" max="3" value="2" step="1">
-      <span id="dpiLabel">표준 (200 dpi)</span>
+    <!-- PDF 전용 옵션 -->
+    <div class="pdf-opts" id="pdfOpts" style="display:none">
+      <div class="slider-row">
+        <label>OCR 해상도</label>
+        <input type="range" id="dpiSlider" min="1" max="4" value="2" step="1">
+        <span id="dpiLabel">표준 (200 dpi)</span>
+      </div>
+      <div class="opt-row" onclick="document.getElementById('preprocess').checked=!document.getElementById('preprocess').checked">
+        <input type="checkbox" id="preprocess" checked>
+        <span><strong>이미지 전처리</strong> (스캔 PDF 권장)</span>
+      </div>
     </div>
 
     <div class="btn-row">
       <button class="btn btn-primary" id="runBtn" onclick="runAll()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-        OCR 분석 시작
+        분석 시작
       </button>
     </div>
   </div>
 
-  <!-- 진행 카드 -->
+  <!-- 진행 -->
   <div class="card" id="pgCard" style="display:none">
     <div class="pbar-header">
       <span class="section-label" style="margin:0">처리 현황</span>
@@ -235,12 +178,13 @@
 
   <!-- 통계 -->
   <div class="stats-grid" id="statsRow" style="display:none">
-    <div class="stat"><div class="stat-val" id="sFiles">0</div><div class="stat-lbl">처리 도면</div></div>
+    <div class="stat"><div class="stat-val" id="sFiles">0</div><div class="stat-lbl">처리 파일</div></div>
     <div class="stat"><div class="stat-val" id="sWalls">0</div><div class="stat-lbl">벽체 종류</div></div>
-    <div class="stat"><div class="stat-val" id="sRows">0</div><div class="stat-lbl">총 데이터 행</div></div>
+    <div class="stat"><div class="stat-val" id="sRows">0</div><div class="stat-lbl">데이터 행</div></div>
+    <div class="stat"><div class="stat-val" id="sMode">-</div><div class="stat-lbl">추출 방식</div></div>
   </div>
 
-  <!-- 결과 카드 -->
+  <!-- 결과 -->
   <div class="card" id="resCard" style="display:none">
     <div class="result-header">
       <span class="section-label" style="margin:0">추출 결과</span>
@@ -254,278 +198,502 @@
         </button>
       </div>
     </div>
-
     <div class="table-wrap">
       <table>
         <thead><tr>
           <th>출처</th><th>벽체기호</th><th>층</th><th>두께(mm)</th>
-          <th>수직철근</th><th>단부보강근</th><th>수평철근</th>
+          <th>수직철근</th><th>단부보강근</th><th>수평철근</th><th>방식</th>
         </tr></thead>
         <tbody id="tBody"></tbody>
       </table>
     </div>
-    <p class="note"><span class="star">(*)</span> 표기 = S41-402 상세도 횡방향 띠철근 설치 필요 벽체</p>
+    <p class="note"><span class="star">(*)</span> = S41-402 상세도 횡방향 띠철근 설치 필요 벽체</p>
   </div>
 
 </div>
-
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-let files = [], allRows = [];
+let files = [], allRows = [], currentTab = 'dxf';
 
-// ── DPI 슬라이더 ────────────────────────────────────────────────
-const DPI_MAP = { 1: '저화질 (150 dpi)', 2: '표준 (200 dpi)', 3: '고화질 (300 dpi)' };
-const DPI_VAL = { 1: 150, 2: 200, 3: 300 };
-document.getElementById('dpiSlider').addEventListener('input', function () {
+// ── 탭 전환 ──────────────────────────────────────────────────────
+function setTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabDxf').classList.toggle('active', tab === 'dxf');
+  document.getElementById('tabPdf').classList.toggle('active', tab === 'pdf');
+  const fi = document.getElementById('fi');
+  fi.accept = tab === 'dxf' ? '.dxf' : '.pdf';
+  document.getElementById('dzLabel').textContent =
+    tab === 'dxf' ? 'DXF 파일을 드래그하거나 클릭해서 선택' : 'PDF 파일을 드래그하거나 클릭해서 선택';
+  document.getElementById('pdfOpts').style.display = tab === 'pdf' ? 'grid' : 'none';
+  files = []; renderFiles();
+}
+
+// ── DPI 슬라이더 ─────────────────────────────────────────────────
+const DPI_MAP = {1:'저화질 (150 dpi)',2:'표준 (200 dpi)',3:'고화질 (300 dpi)',4:'최고 (400 dpi)'};
+const DPI_VAL = {1:150,2:200,3:300,4:400};
+document.getElementById('dpiSlider').addEventListener('input', function() {
   document.getElementById('dpiLabel').textContent = DPI_MAP[this.value];
 });
 
-// ── 파일 업로드 ─────────────────────────────────────────────────
+// ── 파일 업로드 ──────────────────────────────────────────────────
 const dz = document.getElementById('dz');
 const fi = document.getElementById('fi');
-dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
-dz.addEventListener('dragleave', ()  => dz.classList.remove('over'));
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
 dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('over');
-  addFiles([...e.dataTransfer.files].filter(f => f.type === 'application/pdf'));
+  const ext = currentTab === 'dxf' ? '.dxf' : '.pdf';
+  addFiles([...e.dataTransfer.files].filter(f => f.name.toLowerCase().endsWith(ext)));
 });
 fi.addEventListener('change', () => addFiles([...fi.files]));
-
 function addFiles(nf) {
   nf.forEach(f => { if (!files.find(x => x.name === f.name)) files.push(f); });
   renderFiles();
 }
-function removeFile(i) { files.splice(i, 1); renderFiles(); }
+function removeFile(i) { files.splice(i,1); renderFiles(); }
 function renderFiles() {
   const el = document.getElementById('flist');
   el.innerHTML = '';
-  files.forEach((f, i) => {
-    const c = document.createElement('div');
-    c.className = 'chip';
+  files.forEach((f,i) => {
+    const c = document.createElement('div'); c.className = 'chip';
     c.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${f.name}<span class="x" onclick="removeFile(${i})">✕</span>`;
     el.appendChild(c);
   });
 }
 
-// ── 로그 / 진행 ─────────────────────────────────────────────────
-function log(msg, type = 'm') {
+// ── 로그 / 진행 ──────────────────────────────────────────────────
+function log(msg, type='m') {
   const b = document.getElementById('logBox');
-  const d = document.createElement('div');
-  d.className = `logline l${type}`;
-  d.textContent = msg;
-  b.appendChild(d);
-  b.scrollTop = b.scrollHeight;
+  const d = document.createElement('div'); d.className=`logline l${type}`; d.textContent=msg;
+  b.appendChild(d); b.scrollTop = b.scrollHeight;
 }
-function setPct(p, step = '') {
-  document.getElementById('pgFill').style.width = p + '%';
-  document.getElementById('pgPct').textContent   = Math.round(p) + '%';
+function setPct(p, step='') {
+  document.getElementById('pgFill').style.width = p+'%';
+  document.getElementById('pgPct').textContent = Math.round(p)+'%';
   if (step) document.getElementById('pgStep').textContent = step;
 }
 
-// ── PDF → Canvas 변환 ────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+//  DXF 파싱 엔진
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * MTEXT 포맷 코드 제거
+ * 예: {\fArial|b0|i0|c0;SHD10@300} → SHD10@300
+ */
+function cleanMText(raw) {
+  return raw
+    .replace(/\\P/gi, '\n')                   // 단락 구분자 → 줄바꿈
+    .replace(/\\~/g, ' ')                     // non-break space
+    .replace(/\\[Uu]\+[0-9A-Fa-f]{4}/g,'')   // 유니코드 이스케이프
+    .replace(/\{\\[^}]*;([^}]*)\}/g,'$1')    // {\\fXXX;text} → text
+    .replace(/\\[ACcFfHhLlOoQqSsTtWw][^;]*;/g,'') // 서식 코드
+    .replace(/[{}]/g,'')                      // 남은 괄호
+    .replace(/\\\\/g,'\\')                    // 이스케이프된 역슬래시
+    .trim();
+}
+
+/**
+ * DXF 파일에서 TEXT / MTEXT 엔티티를 추출
+ * 반환: [{x, y, text}] — DXF 좌표계 (y축 위가 양수)
+ */
+function extractDXFTextEntities(content) {
+  const items = [];
+  // 줄 단위로 분리
+  const lines = content.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  let i = 0;
+
+  function peek(offset=0) { return (lines[i+offset]||'').trim(); }
+  function next() { const v=(lines[i]||'').trim(); i++; return v; }
+
+  while (i < lines.length - 1) {
+    const code = next();
+    const val  = next();
+
+    if (code !== '0') continue;
+    if (val !== 'TEXT' && val !== 'MTEXT') continue;
+
+    const entity = { type: val, x: 0, y: 0, text: '', extraText: '' };
+
+    // 엔티티 속성 읽기 (다음 그룹코드 0 전까지)
+    while (i < lines.length - 1) {
+      const c = peek(0);
+      if (c === '0') break;          // 다음 엔티티 시작
+      const gc  = next();            // 그룹 코드
+      const gv  = next();            // 값
+
+      switch (gc) {
+        case '10': entity.x = parseFloat(gv) || 0; break;
+        case '20': entity.y = parseFloat(gv) || 0; break;
+        case '1':  entity.text = gv; break;        // 주 텍스트
+        case '3':  entity.extraText += gv; break;  // MTEXT 이어지는 텍스트 (3번 반복 가능)
+      }
+    }
+
+    // MTEXT: 3번 코드 내용 + 1번 코드 내용 합치기
+    let raw = entity.extraText + entity.text;
+    raw = cleanMText(raw);
+    if (raw.trim()) items.push({ x: entity.x, y: entity.y, text: raw.trim() });
+  }
+  return items;
+}
+
+/**
+ * 텍스트 엔티티를 y좌표 기준으로 행 그룹화 → 텍스트 라인 배열 반환
+ * DXF는 y축이 위쪽이 양수이므로 내림차순 = 위→아래
+ */
+function dxfItemsToLines(items) {
+  if (!items.length) return [];
+
+  // y값으로 내림차순 정렬 (화면 위→아래)
+  items.sort((a,b) => b.y - a.y);
+
+  // 행 간격 자동 감지: 연속 y값 차이의 중앙값으로 tolerance 설정
+  const yVals = [...new Set(items.map(i => Math.round(i.y*10)/10))].sort((a,b)=>b-a);
+  const gaps  = [];
+  for (let j=1; j<yVals.length; j++) {
+    const g = yVals[j-1] - yVals[j];
+    if (g > 0.01) gaps.push(g);
+  }
+  gaps.sort((a,b)=>a-b);
+  // 행 그룹화 tolerance = 최소 간격의 40% (또는 최소 0.5, 최대 5)
+  const minGap = gaps.length ? gaps[0] : 2;
+  const TOL = Math.min(5, Math.max(0.5, minGap * 0.4));
+
+  const rows = [];
+  let curRow = [], curY = null;
+  for (const item of items) {
+    if (curY === null || Math.abs(item.y - curY) <= TOL) {
+      curRow.push(item);
+      if (curY === null) curY = item.y;
+    } else {
+      rows.push(curRow.slice().sort((a,b) => a.x - b.x));
+      curRow = [item]; curY = item.y;
+    }
+  }
+  if (curRow.length) rows.push(curRow.sort((a,b) => a.x - b.x));
+
+  // 각 행의 텍스트 합치기
+  return rows.map(r => {
+    // 같은 행 내 x간격을 보존하여 공백 삽입
+    let line = '';
+    let prevX2 = null;
+    for (const item of r) {
+      if (prevX2 !== null && item.x - prevX2 > 1) line += ' ';
+      line += item.text;
+      prevX2 = item.x + (item.text.length * 2); // 대략적인 텍스트 폭
+    }
+    return line.trim();
+  }).filter(Boolean);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PDF 처리 (텍스트 레이어 우선 → OCR 폴백)
+// ════════════════════════════════════════════════════════════════
+async function extractPDFTextLayer(page) {
+  try {
+    const content = await page.getTextContent();
+    const items = content.items.filter(i => i.str && i.str.trim());
+    if (items.length < 8) return null;
+    const ROW_TOL = 4;
+    items.sort((a,b) => b.transform[5] - a.transform[5]);
+    const rows=[]; let curRow=[], curY=null;
+    for (const item of items) {
+      const y = item.transform[5];
+      if (curY===null || Math.abs(y-curY)<=ROW_TOL) { curRow.push(item); if(curY===null)curY=y; }
+      else { rows.push(curRow.sort((a,b)=>a.transform[4]-b.transform[4])); curRow=[item]; curY=y; }
+    }
+    if (curRow.length) rows.push(curRow.sort((a,b)=>a.transform[4]-b.transform[4]));
+    return rows.map(r=>r.map(i=>i.str).join(' ')).join('\n');
+  } catch { return null; }
+}
+
 async function pdfToCanvases(file, dpi) {
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  const out = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page   = await pdf.getPage(i);
-    const vp     = page.getViewport({ scale: dpi / 72 });
-    const canvas = document.createElement('canvas');
-    canvas.width  = vp.width;
-    canvas.height = vp.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    out.push(canvas);
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const out=[];
+  for (let i=1;i<=pdf.numPages;i++) {
+    const page=await pdf.getPage(i);
+    const vp=page.getViewport({scale:dpi/72});
+    const canvas=document.createElement('canvas');
+    canvas.width=vp.width; canvas.height=vp.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+    out.push({canvas,page});
   }
   return out;
 }
 
-// ── 배근 데이터 파싱 ─────────────────────────────────────────────
-// S42-001~003 도면 구조 기반:
-// WALL기호 | 층 | 두께(mm) | 수직철근 | 단부보강근 | 수평철근
-function parseRebarData(rawText, srcName) {
-  const rows  = [];
-  const lines = rawText.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+function preprocessCanvas(src) {
+  const dst=document.createElement('canvas'); dst.width=src.width; dst.height=src.height;
+  const ctx=dst.getContext('2d'); ctx.drawImage(src,0,0);
+  const img=ctx.getImageData(0,0,dst.width,dst.height); const data=img.data;
+  const gray=new Uint8Array(dst.width*dst.height);
+  for(let i=0,j=0;i<data.length;i+=4,j++)
+    gray[j]=Math.round(0.299*data[i]+0.587*data[i+1]+0.114*data[i+2]);
+  const hist=new Array(256).fill(0); gray.forEach(v=>hist[v]++);
+  const total=gray.length; let sum=0;
+  for(let i=0;i<256;i++) sum+=i*hist[i];
+  let sumB=0,wB=0,wF=0,maxVar=0,threshold=128;
+  for(let t=0;t<256;t++){
+    wB+=hist[t]; if(!wB) continue; wF=total-wB; if(!wF) break;
+    sumB+=t*hist[t]; const mB=sumB/wB,mF=(sum-sumB)/wF,v=wB*wF*(mB-mF)**2;
+    if(v>maxVar){maxVar=v;threshold=t;}
+  }
+  for(let j=0;j<gray.length;j++){
+    let v=gray[j]; v=Math.min(255,Math.max(0,(v-threshold)*1.6+threshold));
+    const bin=v>threshold?255:0; const idx=j*4;
+    data[idx]=data[idx+1]=data[idx+2]=bin; data[idx+3]=255;
+  }
+  ctx.putImageData(img,0,0); return dst;
+}
 
-  const RE_PITCHED = /[SU]HD\d+\s*@\s*\d+\s*(\(\*\))?/gi;
-  const RE_COUNTED = /\d+\s*[-—–]\s*[SU]HD\d+\s*(\(\*\))?/gi;
-  const RE_FLOOR   = /(B?\d+F\s*[~〜~–—-]\s*B?\d+F|B?\d+F)/i;
-  const RE_THICK   = /\b([12][0-9]{2}|[34][0-9]{2})\b/;
-  const RE_WALL    = /\b((W|CW|HW|MW)\d+)\b/i;
+function fixOCRText(text) {
+  return text
+    .replace(/\b5HD(\d)/g,'SHD$1')
+    .replace(/\bSH[D0O](\d)/g,'SHD$1')
+    .replace(/\bUH[D0O](\d)/g,'UHD$1')
+    .replace(/@[Oo](\d)/g,'@0$1').replace(/@(\d+)[Oo]/g,'@$10')
+    .replace(/(\d)[Oo](\d)/g,'$10$2')
+    .replace(/\b([lI])F\b/g,'1F').replace(/(\d+)[lI]F/g,'$1F')
+    .replace(/[〜～]/g,'~').replace(/[ \t]+/g,' ');
+}
 
-  let curWall = '', curThick = '';
+// ════════════════════════════════════════════════════════════════
+//  배근 데이터 파싱 (셀 병합 완전 지원)
+// ════════════════════════════════════════════════════════════════
+function parseRebarData(lines, srcName, mode) {
+  const rows=[];
+  // 철근 간격 배치: SHD10@300, UHD16@150(*) 등
+  const RE_PITCHED=/[SU]HD\d{1,2}\s*@\s*\d+\s*(\(\*\))?/gi;
+  // 단부보강근: 3-SHD16(*), 4-UHD19 등
+  const RE_COUNTED=/\d+\s*[-—–]\s*[SU]HD\d{1,2}\s*(\(\*\))?/gi;
+  // 층 범위: B1F~B2F, 1F~5F, RF, PH, PHF
+  const RE_FLOOR=/(B?\d+F\s*[~〜~–—-]\s*B?\d+F|[A-Z]+F?\s*[~〜~–—-]\s*[A-Z0-9]+F?|PHF?|RF|B?\d+F)/i;
+  // 두께 150~600mm
+  const RE_THICK=/\b(1[5-9]\d|[2-5]\d{2})\b/;
+  // 벽체기호: W1, CW21, HW3, MW5 등 (1~4자리 숫자 + 선택적 영문 접미사)
+  const RE_WALL=/\b((CW|HW|MW|W)\d{1,4}[A-Z]?)\b/i;
 
-  for (const line of lines) {
-    // 벽체 기호 감지
+  // ── 셀 병합 컨텍스트 ──
+  let curWall='', curThick='';
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+/g,' ').trim();
+    if (!line) continue;
+
+    // 1) 벽체기호 감지 — 줄 어디에 있든 항상 업데이트
     const wm = line.match(RE_WALL);
-    if (wm && line.replace(wm[0], '').trim().length < 6) {
+    if (wm) {
       curWall = wm[1].toUpperCase();
+      // 같은 줄에 두께가 함께 있으면 캡처
+      const tSame = line.replace(wm[0],'').match(RE_THICK);
+      if (tSame) { const v=parseInt(tSame[1]); if(v>=150&&v<=600) curThick=tSame[1]; }
     }
-    // 두께 단독 감지
-    if (!RE_FLOOR.test(line) && !RE_PITCHED.test(line)) {
-      const tm = line.match(RE_THICK);
-      if (tm) { const v = parseInt(tm[1]); if (v >= 150 && v <= 500) curThick = tm[1]; }
+
+    // 2) 두께 단독 감지 (층/철근 없는 줄 = 병합 셀 헤더)
+    if (!RE_FLOOR.test(line) && !RE_PITCHED.test(line) && !RE_COUNTED.test(line)) {
+      const tm=line.match(RE_THICK);
+      if(tm){ const v=parseInt(tm[1]); if(v>=150&&v<=600) curThick=tm[1]; }
     }
-    // 층 포함 줄
+
+    // 3) 층 범위 있는 줄 = 데이터 행
     const fm = line.match(RE_FLOOR);
     if (!fm) continue;
 
-    const floor = fm[0].trim().replace(/[—–]/g, '~').replace(/\s/g, '');
-    const rest  = line.replace(fm[0], '');
-    const tm    = rest.match(RE_THICK);
-    let thickness = tm ? tm[1] : curThick;
-    if (thickness && (parseInt(thickness) < 100 || parseInt(thickness) > 600)) thickness = curThick;
+    const floor = fm[0].trim().replace(/[—–]/g,'~').replace(/\s/g,'');
+    const rest  = line.replace(fm[0],'');
 
-    const pitched  = [...rest.matchAll(RE_PITCHED)].map(m => m[0].replace(/\s/g, ''));
-    const counted  = [...rest.matchAll(RE_COUNTED)].map(m => m[0].replace(/\s/g, ''));
-    const vRebar   = pitched[0] || '';
-    const hRebar   = pitched[1] || '';
-    const endRebar = counted.join(' ');
+    // 두께: 같은 줄 우선, 없으면 병합 승계
+    const tm=rest.match(RE_THICK);
+    let thickness=curThick;
+    if(tm){ const v=parseInt(tm[1]); if(v>=150&&v<=600){ thickness=tm[1]; curThick=tm[1]; }}
 
-    if (vRebar || hRebar || endRebar) {
-      rows.push({ _source: srcName, wall_id: curWall, floor, thickness, vertical_rebar: vRebar, end_rebar: endRebar, horizontal_rebar: hRebar });
+    const pitched =[...rest.matchAll(RE_PITCHED)].map(m=>m[0].replace(/\s/g,''));
+    const counted =[...rest.matchAll(RE_COUNTED)].map(m=>m[0].replace(/\s/g,''));
+    const vRebar  = pitched[0]||'';
+    const hRebar  = pitched[1]||'';
+    const endRebar= counted.join(' ');
+
+    if (vRebar||hRebar||endRebar) {
+      rows.push({
+        _source: srcName, _mode: mode,
+        wall_id: curWall, floor, thickness,
+        vertical_rebar: vRebar, end_rebar: endRebar, horizontal_rebar: hRebar
+      });
     }
   }
   return rows;
 }
 
-// ── 메인 실행 ────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+//  메인 실행
+// ════════════════════════════════════════════════════════════════
 async function runAll() {
-  if (!files.length) { alert('PDF 파일을 업로드해 주세요.'); return; }
+  if (!files.length) { alert('파일을 업로드해 주세요.'); return; }
 
-  allRows = [];
-  document.getElementById('tBody').innerHTML    = '';
-  document.getElementById('pgCard').style.display  = 'flex';
-  document.getElementById('statsRow').style.display = 'none';
-  document.getElementById('resCard').style.display  = 'none';
-  document.getElementById('logBox').innerHTML   = '';
-  document.getElementById('runBtn').disabled    = true;
-  setPct(0, 'Tesseract.js 로딩 중...');
+  allRows=[];
+  document.getElementById('tBody').innerHTML='';
+  document.getElementById('pgCard').style.display='flex';
+  document.getElementById('statsRow').style.display='none';
+  document.getElementById('resCard').style.display='none';
+  document.getElementById('logBox').innerHTML='';
+  document.getElementById('runBtn').disabled=true;
+  setPct(0,'분석 준비 중...');
 
-  // Tesseract Worker (영어 전용 — 언어팩 즉시 로드)
-  setPct(10, 'OCR 엔진 초기화 중...');
-  let worker;
-  try {
-    worker = await Tesseract.createWorker('eng', 1, {
-      logger: m => {
-        if (m.status === 'loading tesseract core')       setPct(12, '엔진 코어 로딩 중...');
-        if (m.status === 'initializing tesseract')       setPct(18, '엔진 초기화 중...');
-        if (m.status === 'loading language traineddata') setPct(25, '영어 데이터 로딩 중 (약 4MB)...');
-        if (m.status === 'recognizing text') {
-          setPct(30 + m.progress * 50, `OCR 인식 중... ${Math.round(m.progress * 100)}%`);
-        }
-      }
-    });
-    await worker.setParameters({
-      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@~-()/* F.',
-      preserve_interword_spaces: '1',
-    });
-    log('OCR 엔진 준비 완료 (영어 전용)', 'ok');
-  } catch (e) {
-    log('Worker 초기화 실패: ' + e.message, 'e');
-    document.getElementById('runBtn').disabled = false;
-    return;
-  }
+  const total=files.length; let done=0;
+  let modeCounts={DXF:0,TEXT:0,OCR:0};
 
-  const dpi   = DPI_VAL[document.getElementById('dpiSlider').value] || 200;
-  const total = files.length;
-  let done = 0;
+  // ── DXF 처리 ────────────────────────────────────────────────
+  if (currentTab==='dxf') {
+    for (const file of files) {
+      const srcName=file.name.replace(/\.dxf$/i,'');
+      log(`📐 ${file.name}`, 'i');
+      setPct(10+(done/total)*85, `${file.name} 파싱 중...`);
+      try {
+        const text = await file.text();
+        log(`   DXF 로드 완료 (${(text.length/1024).toFixed(0)} KB)`, 'm');
 
-  for (const file of files) {
-    const srcName = file.name.replace(/\.pdf$/i, '');
-    log(`📄 ${file.name}`, 'i');
-    try {
-      setPct(30 + (done / total) * 60, `${file.name} 렌더링 중...`);
-      const canvases = await pdfToCanvases(file, dpi);
-      log(`   ${canvases.length}페이지 렌더링 완료`, 'm');
-      let fileRows = [];
-      for (let pi = 0; pi < canvases.length; pi++) {
-        setPct(30 + ((done + pi / canvases.length) / total) * 60, `페이지 ${pi + 1}/${canvases.length} OCR 중...`);
-        const { data: { text } } = await worker.recognize(canvases[pi]);
-        const parsed = parseRebarData(text, srcName);
-        fileRows.push(...parsed);
-        log(`   페이지 ${pi + 1}: ${parsed.length}행 추출`, parsed.length > 0 ? 'ok' : 'w');
-      }
-      allRows.push(...fileRows);
-      log(`   → 합계 ${fileRows.length}행`, 'ok');
-    } catch (e) {
-      log(`   오류: ${e.message}`, 'e');
+        const entities = extractDXFTextEntities(text);
+        log(`   텍스트 엔티티 ${entities.length}개 추출`, 'm');
+
+        const lines   = dxfItemsToLines(entities);
+        const parsed  = parseRebarData(lines, srcName, 'DXF');
+        allRows.push(...parsed);
+        modeCounts.DXF++;
+        log(`   → ${parsed.length}행 추출`, parsed.length>0?'ok':'w');
+      } catch(e) { log(`   오류: ${e.message}`, 'e'); }
+      done++;
+      setPct(10+(done/total)*85);
     }
-    done++;
-    setPct(30 + (done / total) * 65);
+
+  // ── PDF 처리 ────────────────────────────────────────────────
+  } else {
+    const doPreprocess = document.getElementById('preprocess').checked;
+    const dpi = DPI_VAL[document.getElementById('dpiSlider').value]||200;
+
+    // Tesseract worker (PDF 스캔 폴백용)
+    let worker;
+    try {
+      setPct(5,'OCR 엔진 초기화 중...');
+      worker = await Tesseract.createWorker('eng',1,{
+        logger: m=>{
+          if(m.status==='loading language traineddata') setPct(15,'언어 데이터 로딩...');
+          if(m.status==='recognizing text')
+            setPct(30+m.progress*50,`OCR 인식 ${Math.round(m.progress*100)}%`);
+        }
+      });
+      await worker.setParameters({
+        tessedit_pageseg_mode:'6', tessedit_ocr_engine_mode:'1',
+        tessedit_char_whitelist:
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@~-+()*/.# ',
+        preserve_interword_spaces:'1',
+      });
+      log('OCR 엔진 준비 완료 (PSM 6·LSTM)','ok');
+    } catch(e) { log('OCR 엔진 초기화 실패: '+e.message,'e'); document.getElementById('runBtn').disabled=false; return; }
+
+    for (const file of files) {
+      const srcName=file.name.replace(/\.pdf$/i,'');
+      log(`📄 ${file.name}`,'i');
+      try {
+        setPct(30+(done/total)*60,`${file.name} 렌더링 중...`);
+        const pages=await pdfToCanvases(file,dpi);
+        log(`   ${pages.length}페이지`,'m');
+        let fileRows=[];
+        for (let pi=0;pi<pages.length;pi++) {
+          const {canvas,page}=pages[pi];
+          setPct(30+((done+pi/pages.length)/total)*60,`페이지 ${pi+1}/${pages.length}...`);
+          const layerText=await extractPDFTextLayer(page);
+          if (layerText&&layerText.length>30) {
+            const parsed=parseRebarData(fixOCRText(layerText).split('\n'),srcName,'TEXT');
+            fileRows.push(...parsed); modeCounts.TEXT++;
+            log(`   p${pi+1}: 텍스트레이어 → ${parsed.length}행`,parsed.length>0?'ok':'w');
+          } else {
+            const tgt=doPreprocess?preprocessCanvas(canvas):canvas;
+            const {data:{text}}=await worker.recognize(tgt);
+            const parsed=parseRebarData(fixOCRText(text).split('\n'),srcName,'OCR');
+            fileRows.push(...parsed); modeCounts.OCR++;
+            log(`   p${pi+1}: OCR → ${parsed.length}행`,parsed.length>0?'ok':'w');
+          }
+        }
+        allRows.push(...fileRows);
+        log(`   → 합계 ${fileRows.length}행`,'ok');
+      } catch(e) { log(`   오류: ${e.message}`,'e'); }
+      done++; setPct(30+(done/total)*65);
+    }
+    await worker.terminate();
   }
 
-  await worker.terminate();
-  setPct(100, '완료');
-  log(`전체 완료: 총 ${allRows.length}행 추출`, 'ok');
+  setPct(100,'완료');
+  const modeStr = Object.entries(modeCounts).filter(([,v])=>v>0).map(([k,v])=>`${k}:${v}`).join(' / ');
+  log(`완료: 총 ${allRows.length}행  [${modeStr}]`,'ok');
   renderTable(allRows);
-  renderStats();
-  document.getElementById('runBtn').disabled = false;
+  renderStats(modeCounts);
+  document.getElementById('runBtn').disabled=false;
 }
 
 // ── 테이블 렌더링 ────────────────────────────────────────────────
 function renderTable(rows) {
-  const tbody = document.getElementById('tBody');
-  tbody.innerHTML = '';
-  let prev = null;
-  rows.forEach((r, i) => {
-    const isNew = r.wall_id && r.wall_id !== prev;
-    const tr = document.createElement('tr');
-    tr.className  = isNew ? 'nw' : (i % 2 === 0 ? 'ev' : '');
-    tr.dataset.w  = (r.wall_id || '').toLowerCase();
-    const KEYS = ['_source','wall_id','floor','thickness','vertical_rebar','end_rebar','horizontal_rebar'];
-    KEYS.forEach((k, ci) => {
-      const td = document.createElement('td');
-      const v  = (r[k] || '').replace(/null|None/g, '');
-      if (ci === 1 && v)  td.innerHTML = `<span class="badge">${v}</span>`;
-      else if (ci === 0) { td.style.cssText = 'color:var(--text-muted);font-size:11px'; td.textContent = v; }
-      else { td.textContent = v; if (v.includes('(*)')) td.classList.add('star'); }
+  const tbody=document.getElementById('tBody');
+  tbody.innerHTML=''; let prev=null;
+  rows.forEach((r,i)=>{
+    const isNew=r.wall_id&&r.wall_id!==prev;
+    const tr=document.createElement('tr');
+    tr.className=isNew?'nw':(i%2===0?'ev':'');
+    tr.dataset.w=(r.wall_id||'').toLowerCase();
+    const KEYS=['_source','wall_id','floor','thickness','vertical_rebar','end_rebar','horizontal_rebar','_mode'];
+    KEYS.forEach((k,ci)=>{
+      const td=document.createElement('td');
+      const v=(r[k]||'').replace(/null|None/g,'');
+      if(ci===1&&v) td.innerHTML=`<span class="badge">${v}</span>`;
+      else if(ci===0){td.style.cssText='color:var(--text-muted);font-size:11px';td.textContent=v;}
+      else if(ci===7){
+        const cls={DXF:'mode-dxf',TEXT:'mode-txt',OCR:'mode-ocr'}[v]||'mode-ocr';
+        td.innerHTML=v?`<span class="${cls}">${v}</span>`:'';
+      } else {td.textContent=v;if(v.includes('(*)'))td.classList.add('star');}
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
-    if (r.wall_id) prev = r.wall_id;
+    if(r.wall_id) prev=r.wall_id;
   });
-  document.getElementById('resCard').style.display = 'flex';
+  document.getElementById('resCard').style.display='flex';
 }
-
 function filterTbl() {
-  const q = document.getElementById('srch').value.toLowerCase();
-  document.querySelectorAll('#tBody tr').forEach(tr => {
-    tr.style.display = !q || tr.dataset.w.includes(q) ? '' : 'none';
-  });
+  const q=document.getElementById('srch').value.toLowerCase();
+  document.querySelectorAll('#tBody tr').forEach(tr=>{tr.style.display=!q||tr.dataset.w.includes(q)?'':'none';});
+}
+function renderStats(modeCounts) {
+  const walls=new Set(allRows.map(r=>r.wall_id).filter(Boolean));
+  const modeStr=modeCounts.DXF>0&&modeCounts.OCR===0&&modeCounts.TEXT===0?'DXF':
+                modeCounts.OCR===0&&modeCounts.DXF===0?'텍스트':
+                modeCounts.DXF===0&&modeCounts.TEXT===0?'OCR':'혼합';
+  document.getElementById('sFiles').textContent=files.length;
+  document.getElementById('sWalls').textContent=walls.size;
+  document.getElementById('sRows').textContent=allRows.length;
+  document.getElementById('sMode').textContent=modeStr;
+  document.getElementById('statsRow').style.display='grid';
 }
 
-function renderStats() {
-  const walls = new Set(allRows.map(r => r.wall_id).filter(Boolean));
-  document.getElementById('sFiles').textContent = files.length;
-  document.getElementById('sWalls').textContent = walls.size;
-  document.getElementById('sRows').textContent  = allRows.length;
-  document.getElementById('statsRow').style.display = 'grid';
-}
-
-// ── Excel 다운로드 ───────────────────────────────────────────────
+// ── Excel 다운로드 ────────────────────────────────────────────────
 function dlExcel() {
-  if (!allRows.length) return;
-  const wb   = XLSX.utils.book_new();
-  const HDRS = ['출처도면','벽체기호','층','두께(mm)','수직철근','단부보강근','수평철근'];
-  const KEYS = ['_source','wall_id','floor','thickness','vertical_rebar','end_rebar','horizontal_rebar'];
-  const COLS = [14, 10, 16, 8, 18, 16, 16];
-
-  const sources = [...new Set(allRows.map(r => r._source))];
-  sources.forEach(src => {
-    const data = [HDRS, ...allRows.filter(r => r._source === src).map(r => KEYS.map(k => (r[k] || '').replace(/null|None/g, '')))];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = COLS.map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, ws, src.slice(0, 31));
+  if(!allRows.length) return;
+  const wb=XLSX.utils.book_new();
+  const HDRS=['출처파일','벽체기호','층','두께(mm)','수직철근','단부보강근','수평철근','추출방식'];
+  const KEYS=['_source','wall_id','floor','thickness','vertical_rebar','end_rebar','horizontal_rebar','_mode'];
+  const COLS=[14,10,16,8,18,16,16,8];
+  const sources=[...new Set(allRows.map(r=>r._source))];
+  sources.forEach(src=>{
+    const data=[HDRS,...allRows.filter(r=>r._source===src).map(r=>KEYS.map(k=>(r[k]||'').replace(/null|None/g,'')))];
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=COLS.map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,src.slice(0,31));
   });
-
-  const allData = [HDRS, ...allRows.map(r => KEYS.map(k => (r[k] || '').replace(/null|None/g, '')))];
-  const wsAll  = XLSX.utils.aoa_to_sheet(allData);
-  wsAll['!cols'] = COLS.map(w => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, wsAll, '전체통합');
-
-  XLSX.writeFile(wb, '벽체_배근일람.xlsx');
+  const allData=[HDRS,...allRows.map(r=>KEYS.map(k=>(r[k]||'').replace(/null|None/g,'')))];
+  const wsAll=XLSX.utils.aoa_to_sheet(allData);
+  wsAll['!cols']=COLS.map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,wsAll,'전체통합');
+  XLSX.writeFile(wb,'벽체_배근일람_v3.xlsx');
 }
 </script>
 </body>
